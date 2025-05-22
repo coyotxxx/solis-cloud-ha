@@ -167,8 +167,12 @@ class SolisCloudDataUpdateCoordinator(DataUpdateCoordinator):
         })
         if station_day:
             day_data = station_day.get("data", {})
-            data["daily_hours"] = day_data.get("fullHour", 0)
-
+            if isinstance(day_data, dict):
+                data["daily_hours"] = day_data.get("fullHour", 0)
+            elif isinstance(day_data, list) and day_data:
+                data["daily_hours"] = day_data[0].get("fullHour", 0)
+            else:
+                data["daily_hours"] = 0
         # Get inverter info if not cached
         if not self.inverter_id:
             inverter_list = await self._make_request("/v1/api/inverterList", {
