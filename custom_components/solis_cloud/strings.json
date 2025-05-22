@@ -1,0 +1,22 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Konfiguracja Solis Cloud",
+        "description": "Wprowadź dane dostępowe do API SolisCloud. Klucze API możesz uzyskać na: {setup_url}",
+        "data": {
+          "key_id": "API Key ID",
+          "key_secret": "API Key Secret",
+          "station_id": "Station ID (opcjonalne - zostanie wykryte automatycznie)",
+          "api_url": "API URL"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Nie można połączyć się z API. Sprawdź klucze dostępowe."
+    },
+    "abort": {
+      "already_configured": "Urządzenie jest już skonfigurowane"
+    }
+  }
+}
