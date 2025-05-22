@@ -4,7 +4,7 @@ Integracja Home Assistant dla instalacji fotowoltaicznych Solis Cloud.
 
 ## ⚡ Funkcje
 
-- **21 sensorów** z danymi produkcji energii i parametrami technicznymi
+- **22 sensory** z danymi produkcji energii i parametrami technicznymi
 - **Automatyczna konfiguracja** przez interfejs graficzny
 - **Wsparcie Energy Dashboard** - automatyczne wykrywanie sensorów energii
 - **Aktualizacja co 2 minuty** z API SolisCloud
@@ -58,12 +58,52 @@ Integracja Home Assistant dla instalacji fotowoltaicznych Solis Cloud.
 4. Wprowadź swoje klucze API
 5. Station ID zostanie wykryte automatycznie
 
-## 📱 Energy Dashboard
+## 📱 Energy Dashboard & Example Dashboard
 
 Po konfiguracji sensory automatycznie pojawią się w Energy Dashboard:
 1. Idź do **Settings** → **Energy**
 2. W sekcji **Solar panels** kliknij **Add**
-3. Wybierz sensor energia produkcji
+3. Wybierz sensor `Solis Energia dzisiaj`
+
+### Przykładowy dashboard z wszystkimi sensorami:
+
+![Solis Dashboard Example](screenshots/dashboard-example.png)
+*Przykładowy dashboard pokazujący wszystkie dostępne sensory Solis Cloud*
+
+Dashboard zawiera:
+- **Gauges** - aktualna moc i dzienna produkcja energii
+- **Wykres 24h** - moc w czasie rzeczywistym z historią
+- **Parametry techniczne** - temperatura falownika, godziny pracy, sprawność
+- **Sieć AC** - napięcia i prądy na fazach L1/L2/L3  
+- **Statystyki długoterminowe** - energia miesiąc/rok/łącznie
+
+## 🤖 Przykładowe automatyzacje
+
+```yaml
+# Powiadomienie o rozpoczęciu produkcji
+automation:
+  - alias: "Panele zaczęły produkować energię"
+    trigger:
+      platform: numeric_state
+      entity_id: sensor.solis_aktualna_moc
+      above: 0.5
+    action:
+      service: notify.mobile_app
+      data:
+        message: "☀️ Panele słoneczne rozpoczęły produkcję!"
+
+# Alert przy wysokiej temperaturze falownika
+automation:
+  - alias: "Wysoka temperatura falownika"
+    trigger:
+      platform: numeric_state
+      entity_id: sensor.solis_temperatura_falownika
+      above: 70
+    action:
+      service: notify.mobile_app
+      data:
+        message: "🌡️ Temperatura falownika: {{ states('sensor.solis_temperatura_falownika') }}°C"
+```
 
 ## 🔧 Troubleshooting
 
@@ -83,5 +123,4 @@ MIT License - używaj swobodnie dla projektów osobistych i komercyjnych.
 
 ## 🤝 Wsparcie
 
-Problemy i sugestie zgłaszaj w sekcji Issues tego repozytorium.
-
+Problemy i sugestie zgłaszaj w sekcji [Issues](https://github.com/coyotxxx/solis-cloud-ha/issues) tego repozytorium.
