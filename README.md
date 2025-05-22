@@ -65,7 +65,7 @@ Po konfiguracji sensory automatycznie pojawią się w Energy Dashboard:
 2. W sekcji **Solar panels** kliknij **Add**
 3. Wybierz sensor `Solis Energia dzisiaj`
 
-### Przykładowy dashboard z wszystkimi sensorami:
+### Przykładowy dashboard z sensorami:
 
 ![Solis Dashboard Example](screenshots/dashboard-example.png)
 *Przykładowy dashboard pokazujący wszystkie dostępne sensory Solis Cloud*
