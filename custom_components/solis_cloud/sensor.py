@@ -198,10 +198,10 @@ class SolisCloudDataUpdateCoordinator(DataUpdateCoordinator):
                     "inverter_temp": inv_data.get("inverterTemperature", 0),
                     "pv1_voltage": inv_data.get("uPv1", 0),
                     "pv1_current": inv_data.get("iPv1", 0),
-                    "pv1_power": inv_data.get("pPv1", 0),
+                    "pv1_power": inv_data.get("pow1", 0),  # Zmienione z pPv1 na pow1
                     "pv2_voltage": inv_data.get("uPv2", 0),
                     "pv2_current": inv_data.get("iPv2", 0),
-                    "pv2_power": inv_data.get("pPv2", 0),
+                    "pv2_power": inv_data.get("pow2", 0),  # Zmienione z pPv2 na pow2
                     "ac_l1_voltage": inv_data.get("uAc1", 0),
                     "ac_l1_current": inv_data.get("iAc1", 0),
                     "ac_l2_voltage": inv_data.get("uAc2", 0),
