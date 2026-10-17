@@ -85,6 +85,11 @@ class SolisCloudConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Solis Cloud."""
 
     VERSION = 1
+    
+    @property
+    def icon(self) -> str:
+        """Return the icon."""
+        return "mdi:solar-power"
 
     async def async_step_user(self, user_input=None) -> FlowResult:
         """Handle the initial step."""

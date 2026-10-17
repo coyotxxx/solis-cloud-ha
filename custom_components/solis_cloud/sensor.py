@@ -1,5 +1,7 @@
 """Sensor platform for Solis Cloud integration."""
+import asyncio
 import logging
+import time
 from datetime import timedelta
 import aiohttp
 import hashlib
@@ -32,7 +34,10 @@ from homeassistant.helpers.update_coordinator import (
     UpdateFailed,
 )
 
-from .const import DOMAIN, CONF_KEY_ID, CONF_KEY_SECRET, CONF_STATION_ID, CONF_API_URL, UPDATE_INTERVAL
+from .const import (
+    DOMAIN, CONF_KEY_ID, CONF_KEY_SECRET, CONF_STATION_ID, CONF_API_URL,
+    UPDATE_INTERVAL, MAX_RETRIES, RETRY_BACKOFF, MIN_REQUEST_SPACING,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -84,6 +89,9 @@ class SolisCloudDataUpdateCoordinator(DataUpdateCoordinator):
         self.api_url = config.get(CONF_API_URL, "https://www.soliscloud.com:13333")
         self.inverter_id = None
         self.inverter_sn = None
+        # v1.1.0: wymuszenie odstepu miedzy zapytaniami do API
+        self._request_lock = asyncio.Lock()
+        self._last_request = 0.0
 
         super().__init__(
             hass,
@@ -106,41 +114,72 @@ class SolisCloudDataUpdateCoordinator(DataUpdateCoordinator):
         return signature, content_md5
 
     async def _make_request(self, endpoint: str, body: dict = None) -> dict:
-        """Make API request."""
+        """Wykonaj zapytanie do API z ponawianiem i odstepem miedzy zadaniami.
+
+        v1.1.0: wczesniej KAZDY blad (HTTP != 200, success=false, timeout)
+        natychmiast rzucal UpdateFailed, co gasilo wszystkie 22 encje na caly
+        cykl (2 min). Teraz pojedyncza wpadka API jest ponawiana i nie wywraca
+        calej integracji.
+        """
         if body is None:
             body = {}
 
         verb = "POST"
         resource = endpoint
         body_str = json.dumps(body)
-        date = datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
+        last_error = None
 
-        signature, content_md5 = self._create_signature(verb, resource, body_str, date)
+        for attempt in range(1, MAX_RETRIES + 1):
+            # Odstep miedzy DOWOLNYMI dwoma zapytaniami - limit SolisCloud.
+            # Lock, bo cykl wysyla 3 zapytania i nie moga sie wyprzedzac.
+            async with self._request_lock:
+                czekaj = MIN_REQUEST_SPACING - (time.monotonic() - self._last_request)
+                if czekaj > 0:
+                    await asyncio.sleep(czekaj)
+                self._last_request = time.monotonic()
 
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': f'API {self.key_id}:{signature}',
-            'Date': date,
-            'Content-MD5': content_md5
-        }
+            # Sygnature i naglowek Date liczymy TUZ przed wyslaniem - przy
+            # ponawianiu stary Date moglby zostac odrzucony przez API.
+            date = datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
+            signature, content_md5 = self._create_signature(verb, resource, body_str, date)
+            headers = {
+                'Content-Type': 'application/json',
+                'Authorization': f'API {self.key_id}:{signature}',
+                'Date': date,
+                'Content-MD5': content_md5
+            }
 
-        try:
-            async with self.session.post(
-                f"{self.api_url}{resource}",
-                data=body_str,
-                headers=headers,
-                timeout=aiohttp.ClientTimeout(total=30)
-            ) as response:
-                if response.status == 200:
-                    result = await response.json()
-                    if result.get("success"):
-                        return result
+            try:
+                async with self.session.post(
+                    f"{self.api_url}{resource}",
+                    data=body_str,
+                    headers=headers,
+                    timeout=aiohttp.ClientTimeout(total=30)
+                ) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        if result.get("success"):
+                            if attempt > 1:
+                                _LOGGER.debug(
+                                    "Solis %s: udalo sie przy probie %s/%s",
+                                    endpoint, attempt, MAX_RETRIES
+                                )
+                            return result
+                        last_error = f"API error: {result.get('msg', 'Unknown')}"
                     else:
-                        raise UpdateFailed(f"API error: {result.get('msg', 'Unknown')}")
-                else:
-                    raise UpdateFailed(f"HTTP {response.status}")
-        except Exception as e:
-            raise UpdateFailed(f"Request failed: {e}")
+                        last_error = f"HTTP {response.status}"
+            except Exception as e:
+                last_error = f"Request failed: {e}"
+
+            if attempt < MAX_RETRIES:
+                opoznienie = RETRY_BACKOFF[min(attempt - 1, len(RETRY_BACKOFF) - 1)]
+                _LOGGER.debug(
+                    "Solis %s: proba %s/%s nieudana (%s), ponawiam za %ss",
+                    endpoint, attempt, MAX_RETRIES, last_error, opoznienie
+                )
+                await asyncio.sleep(opoznienie)
+
+        raise UpdateFailed(f"{endpoint}: {last_error} (po {MAX_RETRIES} probach)")
 
     async def _fetch_data(self) -> dict:
         """Fetch data from API."""

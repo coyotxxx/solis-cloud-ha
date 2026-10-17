@@ -114,7 +114,10 @@ automation:
 
 ### Błędy połączenia
 - Sprawdź połączenie internetowe
-- API ma limity - integracja czeka 2 minuty między zapytaniami
+- API SolisCloud ma limity częstotliwości - od v1.1.0 integracja zachowuje
+  minimum 3 sekundy odstępu między zapytaniami i ponawia nieudane
+  zapytanie do 3 razy (przerwy 2 s i 5 s), zanim oznaczy sensory jako niedostępne
+- Dane odświeżane są co 2 minuty
 - Sprawdź czy na koncie SolisCloud są stacje/falowniki
 
 ## 📋 Licencja
